@@ -1,4 +1,4 @@
-from sqlalchemy import Column,String,Float,Integer
+from sqlalchemy import Column,String,Float,Integer,BOOLEAN
 from.database import Base
 
 class ItemDB(Base):
@@ -7,3 +7,4 @@ class ItemDB(Base):
     name = Column(String, index=True, nullable=False)
     description = Column(String, nullable=True)
     price = Column(Float, nullable=False)
+    is_active=Column(BOOLEAN,default=True,nullable=False)

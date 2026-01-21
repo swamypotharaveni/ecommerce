@@ -1,20 +1,35 @@
 from fastapi import FastAPI,HTTPException,APIRouter,Query,Depends
 from sqlalchemy.orm import session
 from typing import Optional
+from sqlalchemy import asc, desc,or_
 
 from..schemas import ItemCreate,Item,PaginatedItems
 from..dependencies import get_db
 from..models import ItemDB
 router=APIRouter()
-items_db = []
-iter_counter=1
 @router.get('/items/',response_model=PaginatedItems)
 async def items(db:session=Depends(get_db),
                 skip:int=Query(0,ge=0),
                 limit:int=Query(10,ge=1,le=100),
                 name:Optional[str]=Query(None),
+                q:Optional[str]=Query(None),
+                status:Optional[str]=Query("all"),
                 price_min:Optional[float]=Query(None,ge=0),price_max:Optional[float]=Query(None,ge=0)):
+    # query = db.query(ItemDB)
+    # if status == "all":
+    #     query = db.query(ItemDB)
+    # else:
+    #      query = db.query(ItemDB).filter(ItemDB.is_active==status)
     query = db.query(ItemDB)
+    if status.lower() == "active":
+        query = query.filter(ItemDB.is_active == True)
+    elif status.lower() == "inactive":
+        query = query.filter(ItemDB.is_active == False)
+
+    if q is not None:
+        query=query.filter(
+            or_(ItemDB.name.like(f"%{q}%"),ItemDB.price.like(f"%{q}%"))
+        )
     if name:
         query=query.filter(ItemDB.name.like(f"%{name}%"))
     if price_min is not None:
@@ -23,7 +38,8 @@ async def items(db:session=Depends(get_db),
         query=query.filter(ItemDB.price<=price_max)
 
     total_count=query.count()
-    paginated_items=query.offset(skip).limit(limit).all()
+    paginated_items=query.order_by(ItemDB.id.desc()).offset(skip).limit(limit).all()
+  
     
 
     return {
