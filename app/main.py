@@ -4,10 +4,16 @@ from .database import Base,engine,SessionLocal
 from.router.item_routes import router as item_routers
 from fastapi.exceptions import RequestValidationError
 from.models import ItemDB
+from pathlib import Path
+from fastapi.staticfiles import StaticFiles
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="My First FastAPI Project")
-print("")
+BASE_DIR = Path(__file__).resolve().parent
+IMAGE_DIR = BASE_DIR / "images/"
+
+app.mount("/images/", StaticFiles(directory=IMAGE_DIR), name="images")
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = []

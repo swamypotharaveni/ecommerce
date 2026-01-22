@@ -8,11 +8,12 @@ from..dependencies import get_db
 from..models import ItemDB
 import uuid
 import shutil
+from fastapi.requests import Request
 router=APIRouter()
 IMAGE_DIR = Path("app/images")
 IMAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-async def Save_Image(image:UploadFile):
+async def Save_Image(image:UploadFile,request:Request):
     if image is None:
         raise HTTPException(status_code=400,detail="image is not upload")
     content= await image.read()
@@ -21,10 +22,12 @@ async def Save_Image(image:UploadFile):
     if image.content_type not in ["image/png","image/jpeg"]:
         raise HTTPException(status_code=400,detail="this file is not accepted!")
     filename=f"{uuid.uuid4()}_{image.filename}"
+    image.file.seek(0)
     file_path=IMAGE_DIR/filename
     with file_path.open('wb+') as buffer:
         shutil.copyfileobj(image.file,buffer)
-    return f"/image/{filename}"
+        base_url = str(request.base_url) 
+    return f"{base_url}images/{filename}"
 @router.get('/items/',response_model=PaginatedItems)
 async def items(db:session=Depends(get_db),
                 skip:int=Query(0,ge=0),
@@ -73,8 +76,9 @@ async def creare_item(name:str=Form(...),
                        price:float=Form(...),
                        is_active:bool=Form(True),
                        stock_quantity:int=Form(0),
+                       request:Request=None,
                        image:UploadFile=File(None),db:session=Depends(get_db)):
-    image_url=await Save_Image(image) if image else None
+    image_url=await Save_Image(image,request) if image else None
     db_items=ItemDB(name=name,
         description=description,
         price=price,
