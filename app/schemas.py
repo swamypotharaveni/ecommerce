@@ -34,3 +34,5 @@ class Item(ItemCreate):
 class PaginatedItems(BaseModel):
     total_count:int
     items:List[Item]
+class BulkDeleteItems(BaseModel):
+    item_ids:List[int]

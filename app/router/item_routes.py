@@ -3,11 +3,12 @@ from sqlalchemy.orm import session
 from typing import Optional
 from sqlalchemy import asc, desc,or_
 from pathlib import Path
-from..schemas import ItemCreate,Item,PaginatedItems
+from..schemas import ItemCreate,Item,PaginatedItems,BulkDeleteItems
 from..dependencies import get_db
 from..models import ItemDB
 import uuid
 import shutil
+import os
 from fastapi.requests import Request
 router=APIRouter()
 IMAGE_DIR = Path("app/images")
@@ -116,5 +117,30 @@ def delete_items(item_id: int,db:session=Depends(get_db)):
     db.delete(db_item)
     db.commit()
     return {"message": "Item deleted successfully"}
+
+@router.post('/items/bulk_delete')
+def bulk_delete_items(payload:BulkDeleteItems,db:session=Depends(get_db)):
+    items_to_delete = db.query(ItemDB).filter(ItemDB.id.in_(payload.item_ids)).all()
+    print(items_to_delete)
+    if not items_to_delete:
+        raise HTTPException(status_code=404, detail="No items found for given IDs")
+    deleted_ids=[]
+    for item in items_to_delete:
+        if item.image_url:
+            print(item.image_url)
+            filename = item.image_url.split("/")[-1]
+            file_path = IMAGE_DIR / filename
+            print(file_path)
+            if file_path.exists():
+                os.remove(file_path)
+        deleted_ids.append(item.id)
+        db.delete(item)
+    db.commit()
+    return {
+        "deleted_count": len(deleted_ids),
+        "deleted_ids":deleted_ids
+    }
+
+
 
     
