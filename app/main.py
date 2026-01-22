@@ -1,13 +1,13 @@
 from fastapi import FastAPI,Request
 from fastapi.responses import JSONResponse
-from .database import Base,engine
+from .database import Base,engine,SessionLocal
 from.router.item_routes import router as item_routers
 from fastapi.exceptions import RequestValidationError
+from.models import ItemDB
 
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title="My First FastAPI Project")
-print("ks")
-
+print("")
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = []
@@ -21,6 +21,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         status_code=422,
         content={"success": False, "errors": errors}
     )
+db = SessionLocal()
+
+# # Set default values for old rows
+# db.query(ItemDB).filter(ItemDB.is_active == None).update({ItemDB.is_active: True})
+# db.query(ItemDB).filter(ItemDB.stock_quantity == None).update({ItemDB.stock_quantity: 0})
+# db.commit()
 
 app.include_router(item_routers)
 

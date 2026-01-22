@@ -1,12 +1,30 @@
-from fastapi import FastAPI,HTTPException,APIRouter,Query,Depends
+from fastapi import FastAPI,HTTPException,APIRouter,Query,Depends,File,Form,UploadFile
 from sqlalchemy.orm import session
 from typing import Optional
 from sqlalchemy import asc, desc,or_
-
+from pathlib import Path
 from..schemas import ItemCreate,Item,PaginatedItems
 from..dependencies import get_db
 from..models import ItemDB
+import uuid
+import shutil
 router=APIRouter()
+IMAGE_DIR = Path("app/images")
+IMAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+async def Save_Image(image:UploadFile):
+    if image is None:
+        raise HTTPException(status_code=400,detail="image is not upload")
+    content= await image.read()
+    if len(content)> 2*1024*1024:
+         raise HTTPException(status_code=400,detail=f"upload a images too large! {image.content_type}")
+    if image.content_type not in ["image/png","image/jpeg"]:
+        raise HTTPException(status_code=400,detail="this file is not accepted!")
+    filename=f"{uuid.uuid4()}_{image.filename}"
+    file_path=IMAGE_DIR/filename
+    with file_path.open('wb+') as buffer:
+        shutil.copyfileobj(image.file,buffer)
+    return f"/image/{filename}"
 @router.get('/items/',response_model=PaginatedItems)
 async def items(db:session=Depends(get_db),
                 skip:int=Query(0,ge=0),
@@ -48,9 +66,21 @@ async def items(db:session=Depends(get_db),
 
     }
 
+
 @router.post('/items/',response_model=Item)
-async def creare_item(item:ItemCreate,db:session=Depends(get_db)):
-    db_items=ItemDB(**item.model_dump())
+async def creare_item(name:str=Form(...),
+                      description:str=Form(None),
+                       price:float=Form(...),
+                       is_active:bool=Form(True),
+                       stock_quantity:int=Form(0),
+                       image:UploadFile=File(None),db:session=Depends(get_db)):
+    image_url=await Save_Image(image) if image else None
+    db_items=ItemDB(name=name,
+        description=description,
+        price=price,
+        is_active=is_active,
+        stock_quantity=stock_quantity,
+        image_url=image_url)
     db.add(db_items)
     db.commit()
     db.refresh(db_items)
